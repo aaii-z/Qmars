@@ -1,11 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"net"
+	"time"
 	"os"
 	"strings"
-	"time"
 )
 
 // Function to scan a given IP and port
@@ -41,10 +42,24 @@ func getLocalIP() string {
 // Function to generate a list of IPs in the subnet
 func generateIPs(subnet string) []string {
 	ips := []string{}
-	for i := 40; i < 255; i++ {
+	for i := 40; i < 50; i++ {
 		ips = append(ips, fmt.Sprintf("%s.%d", subnet, i))
 	}
 	return ips
+}
+
+// Function to handle incoming connections
+func handleConnection(conn net.Conn) {
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+	for {
+		message, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Connection closed by the other Qmars.")
+			return
+		}
+		fmt.Printf("Received message: %s", message)
+	}
 }
 
 func main() {
@@ -66,18 +81,18 @@ func main() {
 	ips := generateIPs(subnet)
 
 	// Scan the subnet for open port 5457
-	found := false
+	var foundIP string
 	for i, ip := range ips {
-		fmt.Printf("Scanning %s...\n", ip) // Added verbose logging
+		fmt.Printf("Scanning %s...\n", ip)
 		if scanPort(ip, port) {
 			fmt.Printf("Qmars%d: %s has port %s open\n", i+1, ip, port)
-			found = true
+			foundIP = ip
+			break
 		}
-		time.Sleep(5 * time.Millisecond) // Added delay of 500 milliseconds between scans
 	}
 
-	// If no devices found, start listening on port 5457
-	if !found {
+	if foundIP == "" {
+		// If no devices found, start listening on port 5457
 		fmt.Printf("No Qmars found. Starting server on port %s...\n", port)
 		ln, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 		if err != nil {
@@ -86,15 +101,44 @@ func main() {
 		}
 		defer ln.Close()
 
-		// Wait for other Qmars to connect
-		for {
-			conn, err := ln.Accept()
-			if err != nil {
-				fmt.Println(err)
-				continue
+		// Start a goroutine to handle incoming connections
+		go func() {
+			for {
+				conn, err := ln.Accept()
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+				go handleConnection(conn)
 			}
-			fmt.Println("A Qmars has joined!")
-			conn.Close()
+		}()
+
+		// Keep the main thread running to allow messaging
+		for {
+			fmt.Printf("Waiting for another Qmars to connect...\n")
+		}
+	} else {
+		// If another Qmars is found, connect to it and start messaging
+		conn, err := net.Dial("tcp", net.JoinHostPort(foundIP, port))
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer conn.Close()
+
+		// Start a goroutine to handle incoming messages
+		go handleConnection(conn)
+
+		// Send messages to the connected Qmars
+		for {
+			fmt.Print("Enter message: ")
+			reader := bufio.NewReader(os.Stdin)
+			message, _ := reader.ReadString('\n')
+			_, err = fmt.Fprintf(conn, message)
+			if err != nil {
+				fmt.Println("Error sending message:", err)
+				return
+			}
 		}
 	}
 }
