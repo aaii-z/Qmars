@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"time"
 	"strings"
+	"time"
 )
 
 // Function to scan a given IP and port
@@ -59,7 +59,8 @@ func main() {
 	}
 	fmt.Printf("Local IP: %s\n", localIP)
 
-	subnet := localIP[:len(localIP)-len(localIP[strings.LastIndex(localIP, ".")+1:])]
+	// Extract the subnet by trimming the last octet of the IP address
+	subnet := localIP[:strings.LastIndex(localIP, ".")]
 
 	// Generate list of IPs in the subnet
 	ips := generateIPs(subnet)
@@ -67,10 +68,12 @@ func main() {
 	// Scan the subnet for open port 5457
 	found := false
 	for i, ip := range ips {
+		fmt.Printf("Scanning %s...\n", ip) // Added verbose logging
 		if scanPort(ip, port) {
 			fmt.Printf("Qmars%d: %s has port %s open\n", i+1, ip, port)
 			found = true
 		}
+		time.Sleep(500 * time.Millisecond) // Added delay between scans
 	}
 
 	// If no devices found, start listening on port 5457
