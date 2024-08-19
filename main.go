@@ -41,7 +41,7 @@ func getLocalIP() string {
 // Function to generate a list of IPs in the subnet
 func generateIPs(subnet string) []string {
 	ips := []string{}
-	for i := 1; i < 255; i++ {
+	for i := 40; i < 255; i++ {
 		ips = append(ips, fmt.Sprintf("%s.%d", subnet, i))
 	}
 	return ips
@@ -73,6 +73,7 @@ func main() {
 			fmt.Printf("Qmars%d: %s has port %s open\n", i+1, ip, port)
 			found = true
 		}
+		time.Sleep(5 * time.Millisecond) // Added delay of 500 milliseconds between scans
 	}
 
 	// If no devices found, start listening on port 5457
