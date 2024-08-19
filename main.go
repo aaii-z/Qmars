@@ -73,7 +73,6 @@ func main() {
 			fmt.Printf("Qmars%d: %s has port %s open\n", i+1, ip, port)
 			found = true
 		}
-		time.Sleep(500 * time.Millisecond) // Added delay between scans
 	}
 
 	// If no devices found, start listening on port 5457
